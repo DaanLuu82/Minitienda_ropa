@@ -1,55 +1,40 @@
-from flask import Flask, render_template, redirect, url_for, session
+from flask import Flask, render_template, redirect, url_for
+from models import db, Producto, CarritoItem
 
 app = Flask(__name__)
-app.secret_key = 'tu_clave_secreta'
-
-# Productos locales
-productos = [
-    {"id": 1, "nombre": "Polo Casual",        "precio": 45.00,  "imagen": "polo.jpeg"},
-    {"id": 2, "nombre": "Jeans Skinny Mujer", "precio": 120.00, "imagen": "jeans.jpeg"},
-    {"id": 3, "nombre": "Casaca Deportiva",   "precio": 180.00, "imagen": "casaca.jpeg"},
-]
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///tienda.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.secret_key = 'clave-secreta'
+db.init_app(app)
 
 @app.route('/')
 @app.route('/catalogo')
 def catalogo():
+    productos = Producto.query.all()
     return render_template('catalogo.html', productos=productos)
 
 @app.route('/agregar/<int:id>')
 def agregar(id):
-    # Inicializa carrito como dict
-    if 'carrito' not in session or isinstance(session['carrito'], list):
-        session['carrito'] = {}
-    carrito = session['carrito']
-    key = str(id)
-    carrito[key] = carrito.get(key, 0) + 1
-    session.modified = True
+    item = CarritoItem.query.filter_by(producto_id=id).first()
+    if item:
+        item.cantidad += 1
+    else:
+        nuevo = CarritoItem(producto_id=id, cantidad=1)
+        db.session.add(nuevo)
+    db.session.commit()
     return redirect(url_for('ver_carrito'))
 
 @app.route('/carrito')
 def ver_carrito():
-    carrito_data = session.get('carrito', {})
-    productos_carrito = []
-    total = 0.0
-
-    for id_str, cantidad in carrito_data.items():
-        prod = next((p for p in productos if p['id']==int(id_str)), None)
-        if prod:
-            subtotal = prod['precio'] * cantidad
-            total += subtotal
-            productos_carrito.append({
-                **prod,
-                'cantidad': cantidad,
-                'subtotal': round(subtotal,2)
-            })
-
-    return render_template('carrito.html', carrito=productos_carrito, total=round(total,2))
+    items = CarritoItem.query.all()
+    total = sum(i.producto.precio * i.cantidad for i in items)
+    return render_template('carrito.html', carrito=items, total=total)
 
 @app.route('/vaciar')
 def vaciar():
-    session.pop('carrito', None)
-    session.modified = True
-    return redirect(url_for('ver_carrito'))
+    CarritoItem.query.delete()
+    db.session.commit()
+    return redirect(url_for('catalogo'))
 
 if __name__ == '__main__':
     app.run(debug=True)
