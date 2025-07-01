@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+{% block title %}Catálogo{% endblock %}
+
+{% block content %}
+<h1 class="mb-4">Catálogo de Ropa</h1>
+<div class="row">
+  {% for p in productos %}
+    <div class="col-md-4">
+      <div class="card mb-4 shadow-sm">
+        <img src="{{ url_for('static', filename='img/' + p.imagen) }}"
+             class="img-producto card-img-top" alt="{{ p.nombre }}">
+        <div class="card-body">
+          <h5 class="card-title">{{ p.nombre }}</h5>
+          <p class="card-text">Precio: S/. {{ p.precio }}</p>
+          <a href="{{ url_for('agregar', id=p.id) }}" class="btn btn-success w-100">
+            Agregar al carrito
+          </a>
+        </div>
+      </div>
+    </div>
+  {% endfor %}
+</div>
+{% endblock %}
